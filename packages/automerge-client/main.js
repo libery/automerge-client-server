@@ -109,6 +109,13 @@ export default class AutomergeClient {
     this.autocon = null
   }
 
+  getDoc(id) {
+    if (!(id in this.docs)) {
+      return false
+    }
+    return this.docs[id];
+  }
+
   change(id, changer) {
     if (!(id in this.docs)) {
       return false

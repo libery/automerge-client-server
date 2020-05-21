@@ -33,11 +33,13 @@ const rl = readline.createInterface({
 function handleLine() {
   rl.question('automerge> ', line => {
     const [cmd, ...args] = line.trim().split(/ +/)
-    console.log(cmd, args)
+    // console.log(cmd, args)
     if (cmd === 'subscribe' || cmd === 's') {
       subscribe(args)
     } else if (['c', 'ch', 'change'].includes(cmd)) {
       change(args)
+    } else if (['p', 'print'].includes(cmd)) {
+      console.log(JSON.stringify(client.getDoc(args[0]), null, 2));
     } else {
       console.error('Unknown command "' + cmd + '"')
     }
