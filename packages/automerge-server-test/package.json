@@ -18,11 +18,11 @@
   },
   "homepage": "https://gitlab.com/isabella.skorepova/automerge-client-server#readme",
   "dependencies": {
-    "automerge": "^0.8.0",
+    "automerge": "^0.14.0",
     "automerge-server": "^0.0.6",
-    "ws": "^6.0.0"
+    "ws": "^7.3.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.2"
+    "nodemon": "^2.0.4"
   }
 }

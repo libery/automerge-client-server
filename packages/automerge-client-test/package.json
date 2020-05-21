@@ -15,7 +15,7 @@
   },
   "homepage": "https://gitlab.com/isabella.skorepova/automerge-client-server#readme",
   "dependencies": {
-    "automerge": "^0.8.0",
+    "automerge": "^0.14.0",
     "automerge-client": "^0.0.6",
     "universal-websocket-client": "^1.0.2"
   }
