@@ -127,6 +127,8 @@ export default class AutomergeServer {
         }
         if (!doc) {
           // if falsy create new empty document
+          console.log('CREATE');
+
           return Automerge.change(Automerge.init(), doc => {
             doc.docId = id
           })
@@ -160,6 +162,7 @@ export default class AutomergeServer {
       ws.send(JSON.stringify({ action, ...data }))
 
     const autocon = new Automerge.Connection(docSet, data => {
+      console.log('FOOBAR');
       send('automerge', { data })
     })
 
