@@ -3,6 +3,12 @@
 A Server and Client demonstrating [Automerge](https://github.com/automerge/automerge) over [WebSocket](https://github.com/automerge/automerge/issues/117) using the `Automerge.Connection` protocol.
 Client side state management is based on [Recoil](https://recoiljs.org/).
 
+This example demonstrates:
+
+- Real time collaboration / Sync of state between server and many clients
+- Per user undo-redo stack
+- History / Timetravel
+
 ![example](./example.png)
 
 ## Dependencies
@@ -37,7 +43,7 @@ node packages/automerge-client-test
 
 # Issues
 
--  Unsubscribe does not work currently
+-  Re-subscribe after unsubscribe does not work currently
 
 # Questions
 
@@ -48,12 +54,11 @@ node packages/automerge-client-test
 
 # TODO
 
-- User IDs / user colors
-- Presence
-- Focus tracking
+- Simulate offline state by blocking socket
+- Client side persistance / Offline support
+- Presence sync / Unqiue user IDs (and colors)
+- Client focus tracking and sync
 - "push --force" on click
+- "fork" on click
+- Document list as recoil atom
 - UI fields
-- Simualte offline by blocking socket
-- Client side persistance
-- Doc list as atom
-- Offline support
