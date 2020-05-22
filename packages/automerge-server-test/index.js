@@ -19,7 +19,7 @@ function fname(id) {
 
 const automergeServer = new AutomergeServer({
   loadDocument: async id => {
-    if (/^[a-z]+$/.exec(id)) {
+    if (/^[a-z0-9]+$/.exec(id)) {
       try {
         return await promisify(fs.readFile)(fname(id), 'utf8')
       } catch (e) {
@@ -27,12 +27,11 @@ const automergeServer = new AutomergeServer({
         return false // 404
       }
     }
-
     return Promise.resolve(false)
   },
   saveDocument: (id, text) => {
     console.log('Saving', id)
-    if (/[a-z]+/.exec(id)) {
+    if (/[a-z0-9]+/.exec(id)) {
       return promisify(fs.writeFile)(fname(id), text, 'utf8')
     }
     return Promise.resolve()
@@ -51,7 +50,7 @@ wss.on('connection', (ws, req) => {
   }
 })
 
-const PORT = 3000
+const PORT = 4000
 server.listen(PORT, () => {
   console.log(`Listening on http://localhost:${PORT}`)
 })

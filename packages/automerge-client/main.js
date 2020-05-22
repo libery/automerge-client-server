@@ -1,28 +1,26 @@
-import Automerge, { DocSet } from 'automerge'
+import Automerge from 'automerge'
+import DocSet from './docSetRecoil'
 
-// Returns true if all components of clock1 are less than or equal to those of clock2.
-// Returns false if there is at least one component in which clock1 is greater than clock2
-// (that is, either clock1 is overall greater than clock2, or the clocks are incomparable).
-function lessOrEqual(doc1, doc2) {
-  const clock1 = doc1._state.getIn(['opSet', 'clock'])
-  const clock2 = doc2._state.getIn(['opSet', 'clock'])
-  return clock1
-    .keySeq()
-    .concat(clock2.keySeq())
-    .reduce(
-      (result, key) => result && clock1.get(key, 0) <= clock2.get(key, 0),
-      true,
-    )
-}
+const DEBUG = false;
 
 function unique(el, i, list) {
   return list.indexOf(el) === i
 }
 
-function doSave(docs) {
+function defer() {
+  let deferred = {}
+  deferred.promise = new Promise((resolve, reject) => {
+    deferred.resolve = resolve
+    deferred.reject = reject
+  })
+  return deferred
+}
+
+function doSave(docSet) {
   const ret = {}
-  for (const [k, v] of Object.entries(docs)) {
-    ret[k] = Automerge.save(v)
+  for (const docId of docSet.docIds) {
+    let doc = docSet.getDoc(docId)
+    ret[docId] = Automerge.save(doc)
   }
   return JSON.stringify(ret)
 }
@@ -31,126 +29,196 @@ function doLoad(string) {
   if (!string) return {}
   const docs = JSON.parse(string)
   const ret = {}
-  for (const [k, v] of Object.entries(docs)) {
-    ret[k] = Automerge.load(v)
+  const docSet = new DocSet();
+  for (const [docId, doc] of Object.entries(docs)) {
+    ret[docId] = Automerge.load(doc)
+    // docSet.setDoc(docId, doc)
   }
+  // Object.keys(docs).forEach(docId => {
+  //   this.docSet.setDoc(docId, docs[ docId ])
+  // })
   return ret
+}
+
+function appendData(text) {
+  return text + ' ' + (new Date()).toLocaleString();
 }
 
 export default class AutomergeClient {
   constructor({ socket, save, savedData, onChange } = {}) {
-    if (!socket)
+    if (!socket) {
       throw new Error('You have to specify websocket as socket param')
+    }
+
     this.socket = socket
     this.save = save
-    this.docs = doLoad(savedData)
-    this.onChange = onChange || (() => {})
-    this.subscribeList = []
 
-    socket.addEventListener('message', this.private_onMessage.bind(this))
-    socket.addEventListener('open', this.private_onOpen.bind(this))
-    socket.addEventListener('close', this.private_onClose.bind(this))
+    this.deferred = [];
+    this.onChange = onChange
+    // this.subscribeList = []
+    this.connection = null
+
+    // this.docSet = doLoad(savedData)
+
+    this.docSet = new DocSet();
+    this.docSet.registerHandler(this._onDocChange.bind(this))
+
+    socket.addEventListener('message', this._onMessage.bind(this))
+    socket.addEventListener('open', this._onOpen.bind(this))
+    socket.addEventListener('close', this._onClose.bind(this))
     socket.addEventListener('error', evt => console.log('error', evt))
     socket.addEventListener('connecting', evt => console.log('connecting', evt))
   }
 
-  private_onMessage(msg) {
+  _onMessage(msg) {
     const frame = JSON.parse(msg.data)
-    console.log('message', frame)
+    //DEBUG &&
+    console.log('message', frame.action)
 
-    if (frame.action === 'automerge') {
-      this.autocon.receiveMsg(frame.data)
-    } else if (frame.action === 'error') {
-      console.error('Recieved server-side error ' + frame.message)
-    } else if (frame.action === 'subscribed') {
-      console.error('Subscribed to ' + JSON.stringify(frame.id))
-    } else {
-      console.error('Unknown action "' + frame.action + '"')
+    switch(frame.action) {
+      case 'automerge': {
+        this.connection.receiveMsg(frame.data)
+      } break;
+      case 'error': {
+        console.error('Recieved server-side error ' + frame.message)
+      } break;
+      case 'subscribed': {
+        console.log('Subscribed to ' + JSON.stringify(frame.id))
+      } break;
+      // TODO: userlist
+      default: {
+        console.warn('Unknown action "' + frame.action + '"')
+      }
     }
   }
 
-  private_onOpen() {
+  _onOpen() {
+    // DEBUG &&
     console.log('open')
-    const send = data => {
-      this.socket.send(JSON.stringify({ action: 'automerge', data }))
-    }
-
-    const docSet = (this.docSet = new DocSet())
-    docSet.registerHandler((docId, doc) => {
-      if (!this.docs[docId] || lessOrEqual(this.docs[docId], doc)) {
-        // local changes are reflected in new doc
-        this.docs[docId] = doc
-      } else {
-        // local changes are NOT reflected in new doc
-        const merged = Automerge.merge(this.docs[docId], doc)
-        setTimeout(() => docSet.setDoc(docId, merged), 0)
+    this.connection = new Automerge.Connection(
+      this.docSet,
+      (data) => {
+        this.socket.send(JSON.stringify({ action: 'automerge', data }))
       }
-      this.subscribeList = this.subscribeList.filter(el => el !== docId)
-
-      if (this.save) {
-        this.save(doSave(this.docs))
-      }
-
-      this.onChange(docId, this.docs[docId])
-    })
-
-    const autocon = (this.autocon = new Automerge.Connection(docSet, send))
-    autocon.open()
-    this.subscribe(Object.keys(this.docs).concat(this.subscribeList))
+    );
+    this.connection.open()
+    this.subscribe([
+      ...this.docSet.docIds,
+      // ...this.subscribeList
+    ]);
   }
 
-  private_onClose() {
+  _onDocChange(docId, doc) {
+    // DEBUG &&
+    console.log('_onDocChange', docId);
+    if ( docId in this.deferred ) {
+      this.deferred[ docId ].resolve(doc);
+    }
+
+    const info = {
+      canUndo: this.canUndo(docId),
+      canRedo: this.canRedo(docId),
+      history: this.getHistory(docId),
+    }
+    this.docSet.updateInfo(docId, info)
+
+    if (this.save) {
+      this.save(doSave(this.docSet))
+    }
+
+    if (this.onChange) {
+      this.onChange(docId, this.docSet.getDoc(docId))
+    }
+  }
+
+  _onClose() {
+    // DEBUG &&
     console.log('close')
-    if (this.autocon) {
-      this.autocon.close()
+    if (this.connection) {
+      this.connection.close()
     }
-
-    this.docSet = null
-    this.autocon = null
+    // this.docSet = null
+    this.connection = null
   }
 
-  getDoc(id) {
-    if (!(id in this.docs)) {
-      return false
-    }
-    return this.docs[id];
-  }
-
-  change(id, changer) {
-    if (!(id in this.docs)) {
-      return false
-    }
-    this.docs[id] = Automerge.change(this.docs[id], changer)
-    if (this.docSet) {
-      this.docSet.setDoc(id, this.docs[id])
-    }
+  change(id, text, changer) {
+    let doc = this.docSet.getDoc(id);
+    doc = Automerge.change(doc, appendData(text), changer)
+    this.docSet.setDoc(id, doc)
     return true
+  }
+
+  undo(id, text) {
+    let doc = this.docSet.getDoc(id);
+    doc = Automerge.undo(doc, appendData(text))
+    this.docSet.setDoc(id, doc)
+    return true
+  }
+
+  redo(id, text) {
+    let doc = this.docSet.getDoc(id);
+    doc = Automerge.redo(doc, appendData(text))
+    this.docSet.setDoc(id, doc)
+    return true
+  }
+
+  canUndo(id) {
+    let doc = this.docSet.getDoc(id);
+    return Automerge.canUndo(doc)
+  }
+
+  canRedo(id) {
+    let doc = this.docSet.getDoc(id);
+    return Automerge.canRedo(doc)
+  }
+
+  getHistory(id) {
+    return Automerge.getHistory(this.docSet.getDoc(id))
   }
 
   subscribe(ids) {
     if (ids.length <= 0) return
     console.log('Trying to subscribe to ' + JSON.stringify(ids))
-    this.subscribeList = this.subscribeList.concat(ids).filter(unique)
     if (this.socket.readyState === 1) {
       // OPEN
+      ids = ids.filter(unique)
       this.socket.send(
-        JSON.stringify({ action: 'subscribe', ids: ids.filter(unique) }),
+        JSON.stringify({ action: 'subscribe', ids }),
       )
+      return ids.map(docId => {
+        return ( this.deferred[docId] = defer() ).promise
+      })
+    } else {
+      // TODO: Keep track of subscriptions before channel is open
+      // this.subscribeList = this.subscribeList.concat(ids).filter(unique)
+      return [];
     }
+    // return this.subscribeList;
   }
 
   unsubscribe(ids) {
     if (ids.length <= 0) return
-    
-    this.subscribeList = this.subscribeList.filter((value,index) => {
-      return ids.indexOf(value) == -1
-    })
-    
+
     if (this.socket.readyState === 1) {
       // OPEN
+      ids = ids.filter(unique)
       this.socket.send(
-        JSON.stringify({ action: 'unsubscribe', ids: ids.filter(unique) }),
+        JSON.stringify({ action: 'unsubscribe', ids }),
       )
+      // this.subscribeList = this.subscribeList.filter((value) => {
+      //   return !ids.includes(value)
+      // })
+      ids.forEach(docId => {
+        this.docSet.removeDoc(docId)
+        if ( docId in this.deferred ) {
+          this.deferred[ docId ].reject()
+          delete this.deferred[ docId ]
+        }
+      })
     }
+  }
+
+  get subscribeList() {
+    return this.docSet.docIds;
   }
 }

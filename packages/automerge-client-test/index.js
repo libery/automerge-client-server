@@ -6,7 +6,7 @@ const WebSocket = require('./reconnecting-websocket')
 
 const readline = require('readline')
 
-const socket = new WebSocket('http://localhost:3000/automerge')
+const socket = new WebSocket('http://localhost:4000/automerge')
 
 socket.addEventListener('close', () => {
   if (socket._shouldReconnect) socket._connect()
