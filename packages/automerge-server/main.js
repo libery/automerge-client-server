@@ -1,4 +1,5 @@
 import Automerge, { DocSet } from 'automerge'
+// const { Map } = require('immutable')
 
 /*
  * checkAccess: (id: string, req: Request) => Promise<boolean>
@@ -203,6 +204,8 @@ export default class AutomergeServer {
               doc.addToSet(docSet)
               subscribedDocuments.push(doc)
               send('subscribed', { id })
+              // send('automerge', { data: doc })
+              // autocon.sendMsg(id, Map())
             }
             subscribingDocuments = subscribingDocuments.filter(d => d.id !== id)
           }
@@ -242,18 +245,25 @@ export default class AutomergeServer {
 
     const handleFrame = frame => {
       console.log('handling', frame)
-      if (frame.action === 'automerge') {
-        automergeMessage(frame.data)
-      } else if (frame.action === 'error') {
-        console.error('Recieved error frame from client', frame)
-      } else if (frame.action === 'subscribe') {
-        frame.ids.forEach(id => subscribeToDoc(id))
-      } else if (frame.action === 'unsubscribe') {
-        frame.ids.forEach(id => unsubscribe(id))
-      } else {
-        send('error', {
-          message: 'Unknown action ' + frame.action,
-        })
+      switch (frame.action) {
+        case 'automerge': {
+          return automergeMessage(frame.data)
+        }
+        case 'error': {
+          return console.error('Recieved error frame from client', frame)
+        }
+        case 'subscribe': {
+          return frame.ids.forEach(id => subscribeToDoc(id))
+        }
+        case 'unsubscribe': {
+          return frame.ids.forEach(id => unsubscribe(id))
+        }
+        // TODO: heartbeat / presence
+        default: {
+          return send('error', {
+            message: 'Unknown action ' + frame.action,
+          })
+        }
       }
     }
 
