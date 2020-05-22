@@ -16,6 +16,9 @@
   "homepage": "https://gitlab.com/isabella.skorepova/automerge-client-server#readme",
   "dependencies": {
     "automerge": "^0.14.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "recoil": "0.0.7",
     "esm": "^3.2.25"
   }
 }
