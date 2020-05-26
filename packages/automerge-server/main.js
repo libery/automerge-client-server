@@ -35,7 +35,7 @@ class Document {
     docSet.setDoc(this.id, this.doc)
 
     const handler = (docId, doc) => {
-      console.log('handler', docId, doc)
+      DEBUG && console.log('handler', docId, doc)
       if (docId !== this.id) return // not this doc
       if (doc === this.doc) return // already handled
       this.doc = doc
@@ -116,7 +116,7 @@ export default class AutomergeServer {
     console.log('open')
     const docSet = new DocSet()
 
-    docSet.registerHandler((id, doc) => console.log('handler', id, doc))
+    // docSet.registerHandler((id, doc) => console.log('handler', id, doc))
 
     let subscribedDocuments = [] // Document[]
     let subscribingDocuments = [] // { id: string, cancel: boolean }[]
@@ -125,12 +125,12 @@ export default class AutomergeServer {
       subscribedDocuments = subscribedDocuments.filter(d => d.id !== id)
     }
 
-    const send = (action, data) =>
-      console.log('sending', action, data) ||
-      ws.send(JSON.stringify({ action, ...data }))
+    const send = (action, data) => {
+      DEBUG && console.log('sending', action, data);
+      return ws.send(JSON.stringify({ action, ...data }));
+    }
 
-    const autocon = new Automerge.Connection(docSet, data => {
-      console.log('FOOBAR');
+    const connection = new Automerge.Connection(docSet, data => {
       send('automerge', { data })
     })
 
@@ -176,7 +176,7 @@ export default class AutomergeServer {
               subscribedDocuments.push(doc)
               send('subscribed', { id })
               // send('automerge', { data: doc })
-              // autocon.sendMsg(id, Map())
+              // connection.sendMsg(id, Map())
             }
             subscribingDocuments = subscribingDocuments.filter(d => d.id !== id)
           }
@@ -204,9 +204,9 @@ export default class AutomergeServer {
     }
 
     const automergeMessage = data => {
-      console.log(data)
+      DEBUG && console.log('automergeMessage', data)
       if (subscribedDocuments.some(doc => doc.id === data.docId)) {
-        autocon.receiveMsg(data)
+        connection.receiveMsg(data)
       } else {
         send('error', {
           message: 'Sending changes to doc which you are not subscribed to',
@@ -215,7 +215,7 @@ export default class AutomergeServer {
     }
 
     const handleFrame = frame => {
-      console.log('handling', frame)
+      DEBUG && console.log('handling', frame)
       switch (frame.action) {
         case 'automerge': {
           return automergeMessage(frame.data)
@@ -249,11 +249,11 @@ export default class AutomergeServer {
       }
     })
 
-    autocon.open()
+    connection.open()
 
     ws.on('close', () => {
       console.log('close')
-      autocon.close()
+      connection.close()
       subscribedDocuments.forEach(doc => doc.removeFromSet(docSet))
     })
   }

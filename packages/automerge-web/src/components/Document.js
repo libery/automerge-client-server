@@ -71,7 +71,8 @@ function Document({ id }) {
   return (
     <div style={{ display: 'flex' }}>
       <div>
-        <code style={{textAlign: 'left'}}>
+        <code>
+          {/* document id: {id} */}
           {selected
             ? <pre>{JSON.stringify(meta.history[ selected ].snapshot, null, 2)}</pre>
             : <pre>{JSON.stringify(document, null, 2)}</pre> }
