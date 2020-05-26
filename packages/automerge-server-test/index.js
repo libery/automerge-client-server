@@ -50,7 +50,7 @@ wss.on('connection', (ws, req) => {
   }
 })
 
-const PORT = 4000
+const PORT = 8001
 server.listen(PORT, () => {
   console.log(`Listening on http://localhost:${PORT}`)
 })
