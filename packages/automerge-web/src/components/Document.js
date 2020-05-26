@@ -8,23 +8,32 @@ function Document({ id }) {
 
   const onChange1 = () => {
     const ret = client.change(id, "changed string", doc => {
-      doc.str = (doc.str || "") + String.fromCharCode(64 + Math.random() * 23);
+      if ( !doc.str ) {
+        doc.str = '';
+      }
+      doc.str += String.fromCharCode(64 + Math.random() * 23);
     })
     if (!ret) {
       console.error('Failed to change doc, id does not exist.')
     }
   }
 
+  //
   const onChange2 = () => {
     client.change(id, "appendend to list", doc => {
-      doc.list = (doc.list || []);
-      doc.list.push( Math.random() );
+      if ( !doc.list ) {
+        doc.list = [];
+      }
+      doc.list.push( Math.round(Math.random() * 1000) );
     })
   }
 
   const onChange3 = () => {
     client.change(id, "incremented number", doc => {
-      doc.num = (doc.num || 0)  + 1;
+      if (!doc.num) {
+        doc.num = 0
+      }
+      doc.num = doc.num + 1;
     })
   }
 
