@@ -4,7 +4,7 @@
   "private": true,
   "main": "index.js",
   "dependencies": {
-    "automerge": "^0.14.0",
+    "automerge": "^0.14.1",
     "automerge-client": "^0.0.6",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
