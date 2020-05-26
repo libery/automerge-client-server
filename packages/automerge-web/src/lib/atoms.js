@@ -4,3 +4,10 @@ export const textState = atom({
   key: 'textState', // unique ID (with respect to other atoms/selectors)
   default: 'foobar', // default value (aka initial value)
 });
+
+export const appState = atom({
+  key: 'appState',
+  default: {
+    offline: false,
+  }
+})

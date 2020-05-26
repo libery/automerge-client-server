@@ -57,6 +57,7 @@ export default class AutomergeClient {
     this.onChange = onChange
     // this.subscribeList = []
     this.connection = null
+    this.simulateOffline = false
 
     // this.docSet = doLoad(savedData)
 
@@ -70,7 +71,18 @@ export default class AutomergeClient {
     socket.addEventListener('connecting', evt => console.log('connecting', evt))
   }
 
+  _sendMessage(data) {
+    if ( this.simulateOffline ) {
+      return
+    }
+    this.socket.send(JSON.stringify(data))
+  }
+
   _onMessage(msg) {
+    if ( this.simulateOffline ) {
+      return
+    }
+
     const frame = JSON.parse(msg.data)
     //DEBUG &&
     console.log('message', frame.action)
@@ -98,7 +110,7 @@ export default class AutomergeClient {
     this.connection = new Automerge.Connection(
       this.docSet,
       (data) => {
-        this.socket.send(JSON.stringify({ action: 'automerge', data }))
+        this._sendMessage({ action: 'automerge', data })
       }
     );
     this.connection.open()
@@ -182,9 +194,7 @@ export default class AutomergeClient {
     if (this.socket.readyState === 1) {
       // OPEN
       ids = ids.filter(unique)
-      this.socket.send(
-        JSON.stringify({ action: 'subscribe', ids }),
-      )
+      this._sendMessage({ action: 'subscribe', ids })
       return ids.map(docId => {
         return ( this.deferred[docId] = defer() ).promise
       })
@@ -202,9 +212,7 @@ export default class AutomergeClient {
     if (this.socket.readyState === 1) {
       // OPEN
       ids = ids.filter(unique)
-      this.socket.send(
-        JSON.stringify({ action: 'unsubscribe', ids }),
-      )
+      this._sendMessage({ action: 'unsubscribe', ids })
       // this.subscribeList = this.subscribeList.filter((value) => {
       //   return !ids.includes(value)
       // })
@@ -220,5 +228,9 @@ export default class AutomergeClient {
 
   get subscribeList() {
     return this.docSet.docIds;
+  }
+
+  setOfflineStatus(offline) {
+    this.simulateOffline = offline;
   }
 }

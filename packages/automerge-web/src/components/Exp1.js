@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { client } from '../lib/client';
 import Document from "./Document"
+import { appState } from '../lib/atoms'
+import { useRecoilState } from 'recoil';
 
 const id = 'a3';
 
 function Exp1() {
   const [ready, setReady] = useState(false);
+  const [app, setAppState] = useRecoilState(appState);
 
   const onClickSubscribe = () => {
     const plist = client.subscribe([ id ]);
@@ -23,9 +26,27 @@ function Exp1() {
     }
   }
 
+  const toggleOffline = () => {
+    const offline = !app.offline;
+    setAppState({ ...app, offline })
+  }
+
+  useEffect(() => {
+    client.setOfflineStatus(app.offline)
+  }, [ app.offline ])
+
   return (
     <>
       <div>
+        {/* <pre>{JSON.stringify(app)}</pre> */}
+        <label>
+          <input
+            type="checkbox"
+            checked={app.offline}
+            onChange={toggleOffline}
+          />
+          offline
+        </label>
         <button onClick={onClickSubscribe} disabled={ready}>
           Subscribe
         </button>
